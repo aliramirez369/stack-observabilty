@@ -1,0 +1,57 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+
+common:
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2020-12-24
+      store: boltdb-shipper
+      object_store: filesystem
+      schema: v11
+      index:
+        prefix: index_
+        period: 24h
+
+querier:
+  max_concurrent: 512  # Reducido para adaptarse a proyectos medianos
+
+ingester:
+  lifecycler:
+    ring:
+      kvstore:
+        store: inmemory
+    final_sleep: 0s
+  chunk_block_size: 262144  # Tamaño del bloque en bytes (256 KB)
+  chunk_retain_period: 1h   # Retención mínima antes de liberar un chunk
+  max_transfer_retries: 0
+
+frontend_worker:
+  parallelism: 4  # Para entornos pequeños o medianos
+
+frontend:
+  max_outstanding_per_tenant: 2048
+  compress_responses: true
+
+limits_config:
+  enforce_metric_name: false
+  ingestion_rate_mb: 4  # Limita la tasa de ingestión a 4 MB/s
+  ingestion_burst_size_mb: 6
+
+ruler:
+  alertmanager_url: http://localhost:9093
+  storage:
+    type: local
+    local:
+      directory: /loki/rules

@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    container_name: otel-collector
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    volumes:
+      - ./resources/otel-collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml:Z
+    ports:
+      - "13133:13133"  # Health and metrics
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+
+  grafana:
+    image: grafana/grafana:9.1.2
+    container_name: grafana
+    depends_on:
+      - loki
+    ports:
+      - "3000:3000"  # Grafana UI
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./resources/grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ./resources/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./resources/grafana/grafana.ini:/etc/grafana/grafana.ini
+
+  loki:
+    image: grafana/loki:2.6.1
+    container_name: loki
+    depends_on:
+      - fluent-bit
+    ports:
+      - "3100:3100"  # Loki API
+    volumes:
+      - ./resources/loki/local-config.yml:/etc/loki/local-config.yaml
+
+  fluent-bit:
+    image: fluent/fluent-bit:latest
+    container_name: fluent-bit
+    ports:
+      - "24224:24224" # For forward input
+      - "4320:4320"   # For OTLP input (HTTP/GRPC)
+    volumes:
+      - ./resources/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+
+  tempo:
+    image: grafana/tempo:1.5.0
+    container_name: tempo
+    command: -config.file /etc/tempo-config.yml
+    ports:
+      - "3110:3100"   # Tempo API
+      - "44317:4317"  # OTel gRPC
+    volumes:
+      - ./resources/tempo/tempo.yml:/etc/tempo-config.yml
+
+  prometheus:
+    image: prom/prometheus:v2.38.0
+    container_name: prometheus
+    command: --web.enable-remote-write-receiver --config.file=/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"  # Prometheus UI
+    volumes:
+      - ./resources/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
