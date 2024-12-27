@@ -17,9 +17,27 @@ generate_span_id() {
   echo "$(hexdump -n 8 -e '4/4 "%08x"' /dev/urandom | head -c 16)"
 }
 
+# Función para obtener soporte de nanosegundos
+supports_nanoseconds() {
+  if [[ "$(date +%N 2>/dev/null)" =~ ^[0-9]+$ ]]; then
+    echo "true"
+  else
+    echo "false"
+  fi
+}
+
+USE_NANOSECONDS=$(supports_nanoseconds)
+
 # Función para obtener el timestamp inicial en nanosegundos
 generate_timestamp() {
-  echo $(( $(date +%s) * 1000000000 + $(date +%N | cut -c 1-9) ))
+  local seconds=$(date +%s)
+  local nanoseconds="000000000" # Valor predeterminado
+
+  if [ "$USE_NANOSECONDS" = "true" ]; then
+    nanoseconds=$(date +%N)
+  fi
+
+  echo "$((seconds * 1000000000 + 10#$nanoseconds))"
 }
 
 # Intervalo entre registros (100ms en nanosegundos)
